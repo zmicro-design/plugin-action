@@ -1,0 +1,25 @@
+export ACTIONS_PATH=$ZMICRO_PLUGINS_PATH/action/actions
+export ACTIONS_REPO_PREFIX=https://github.com/zmicro-design/action-
+
+export PLUGIN_ACTION_DATA=$(plugin::get_app_data_path $PLUGIN_ACTION_NAME)
+export PLUGIN_ACTION_LOGS=$(plugin::get_app_logs_path $PLUGIN_ACTION_NAME)
+export PLUGIN_ACTION_CONFIGS=$(plugin::get_app_configs_path $PLUGIN_ACTION_NAME)/config
+
+export PLUGIN_ACTION_OFFLINE=${PLUGIN_ACTION_OFFLINE:-"false"}
+export PLUGIN_ACTION_BUILD_FROM_SOURCE=${PLUGIN_ACTION_BUILD_FROM_SOURCE:-"false"}
+
+if [ ! -d "$ACTIONS_PATH" ]; then
+  mkdir -p $ACTIONS_PATH
+fi
+
+if [ ! -w "$ZMICRO_BIN_PATH" ]; then
+  sudo chmod a+rw $ZMICRO_BIN_PATH
+fi
+
+if [ ! -w "$ZMICRO_SUB_BIN_PATH" ]; then
+  sudo chmod a+rw $ZMICRO_SUB_BIN_PATH
+fi
+
+if [ ! -w "$PLUGIN_DIR/actions" ]; then
+  sudo chmod a+rw $PLUGIN_DIR/actions
+fi

@@ -1,0 +1,128 @@
+#!/bin/bash
+
+action::get_path() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_path] name is required"
+    exit 1
+  fi
+
+  echo $ACTIONS_PATH/$name
+}
+
+action::get_action_repo_url() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_action_repo_url] name is required"
+    exit 1
+  fi
+
+  echo ${ACTIONS_REPO_PREFIX}${name}
+}
+
+action::get_mod_path() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_mod_path] name is required"
+    exit 1
+  fi
+
+  local action_path=$(action::get_path $name)
+  echo $action_path/mod
+}
+
+action::get_config_path() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_config_path] name is required"
+    exit 1
+  fi
+
+  local action_path=$(action::get_path $name)
+  echo $action_path/config
+}
+
+action::get_core_path() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_core_path] name is required"
+    exit 1
+  fi
+
+  local action_path=$(action::get_path $name)
+  echo $action_path/core
+}
+
+action::get_bin_zmicro_path() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::get_bin_zmicro_path] name is required"
+    exit 1
+  fi
+
+  local action_path=$(action::get_path $name)
+  echo $action_path/bin/zmicro
+}
+
+action::load_mod() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::load_mod] name is required"
+    exit 1
+  fi
+
+  local action_mod_path=$(action::get_mod_path $name)
+  if [ ! -f $action_mod_path ]; then
+    log::error "[$(timestamp)][action::load_mod] name is required"
+    exit 1
+  fi
+
+  config::load_file $action_mod_path
+}
+
+action::load_config() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::load_config] name is required"
+    exit 1
+  fi
+
+  local config_path=$(action::get_config_path $name)
+  if [ -f $config_path ]; then
+    config::load_file $config_path
+  fi
+}
+
+action::load_core() {
+  local name=$1
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::load_core] name is required"
+    exit 1
+  fi
+
+  local core_path=$(action::get_core_path $name)
+  if [ -f $core_path ]; then
+    config::load_file $core_path
+  fi
+}
+
+action::force_sudo() {
+  # use force sudo to get required permissions
+  sudo ps >>/dev/null 2>&1
+}
+
+export -f action::get_path
+export -f action::get_action_repo_url
+
+export -f action::get_mod_path
+export -f action::get_config_path
+export -f action::get_core_path
+export -f action::get_bin_zmicro_path
+
+export -f action::load_mod
+export -f action::load_config
+export -f action::load_core
+
+# export -f action::release
+
+export -f action::force_sudo

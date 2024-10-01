@@ -1,0 +1,36 @@
+#!/bin/bash
+
+help() {
+  echo "Usage:"
+  echo "  zmicro action go <action_name>"
+}
+
+core() {
+  if [ "$1" = "" ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    help
+    exit 0
+  fi
+
+  # @TODO
+  local action=$1
+  # local module=$2
+  # if [ "$module" = "config" ]; then
+  #   local action_config_path=$PLUGIN_ACTION_CONFIGS/$action
+  #   cd $action_config_path
+  #   exec $SHELL
+  #   exit 0
+  # elif [ "$module" = "data" ]; then
+  #   local action_data_path=$PLUGIN_ACTION_DATA/$action
+  #   cd $action_data_path
+  #   exec $SHELL
+  #   exit 0
+  # fi
+  
+  zmicro action cd $@
+}
+
+run() {
+  core $@
+}
+
+run $@

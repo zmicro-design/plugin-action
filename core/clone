@@ -1,0 +1,122 @@
+#!/bin/bash
+
+action::clone() {
+  local name=$1
+  local version=$2
+  local args=${@:3}
+
+  local error_log=$(os::tmp_file)
+
+  if [ -z "$name" ]; then
+    log::error "[$(timestamp)][action::clone] name is required"
+    exit 1
+  fi
+
+  if [ -z "$version" ]; then
+    version=master
+  elif [ "$version" = "latest" ]; then
+    version=master
+  fi
+
+  # using smart proxy
+  net::using_smart_proxy 2>&1
+
+  local action_path=$(action::get_path $name)
+  local action_repo_url=$(action::get_action_repo_url $name)
+  log::debug "[$(timestamp)][action::clone] action info: path => $action_path, url => $action_repo_url ..."
+  if [ ! -d "$action_path" ]; then
+    # curl -I $action_repo_url 2>>/dev/null | head -n 1 | grep 404 >>/dev/null 2>&1
+    # if [ "$?" = "0" ]; then
+    #   log::error "[$(timestamp)][action::clone] action ${name} is not available"
+    #   exit 1
+    # fi
+
+    log::debug "[$(timestamp)][action::clone] check actions($ZMICRO_PLUGINS_PATH/action/actions) permission ..."
+    if [ ! -w "$ZMICRO_PLUGINS_PATH/action/actions" ]; then
+      log::debug "[$(timestamp)][action::clone] fix actions($ZMICRO_PLUGINS_PATH/action/actions) permission ..."
+      sudo chown $USER $ZMICRO_PLUGINS_PATH/action/actions
+    fi
+
+    log::debug "[$(timestamp)][action::clone] check status: $actions_repo_url ..."
+    local status_code=$(curl -s -o /dev/null -w "%{http_code}" $action_repo_url)
+    if [ "$status_code" = "404" ]; then
+      log::error "[$(timestamp)][action::clone] ${name} is not a action"
+      exit 1
+    fi
+
+    log::debug "[$(timestamp)][action::clone] git clone: $actions_repo_url => $action_path with version $version ..."
+    git clone $action_repo_url -b $version $action_path >>$ZMICRO_LOG_COMMON_PATH 2>$error_log
+    if [ "$?" != "0" ]; then
+      log::error "[$(timestamp)][action::clone] error $name($version) ..."
+      cat $error_log
+      exit 1
+    fi
+  else
+    if [ ! -w "$action_path" ]; then
+      sudo chown -R $USER $action_path
+    fi
+
+    cd $action_path
+
+    if [ ! -r ".git/FETCH_HEAD" ] || [ ! -w ".git/FETCH_HEAD" ]; then 
+      sudo chown -R $USER $action_path
+    fi
+
+    local current_tag=$(git describe --tags 2>/dev/null)
+    if [ "$current_tag" != "$version" ] && [ "$version" != "master" ]; then
+      log::debug "[$(timestamp)][action::clone] git update ..."
+      # git fetch origin $version >> $ZMICRO_LOG_UPDATE_PATH 2>>$ZMICRO_LOG_ERROR_PATH
+      git fetch origin >>$ZMICRO_LOG_UPDATE_PATH 2>$error_log
+      if [ "$?" != "0" ]; then
+        echo "[$(timestamp)][action::clone] git fetch error ${name} ..."
+        cat $error_log
+        exit 1
+      fi
+
+      local tag=$version
+      # 1. if tag branch exist, remove it
+      log::debug "[$(timestamp)][action::clone] git check tag: $tag ..."
+      git branch | grep $tag >>/dev/null 2>&1
+      if [ "$?" = "0" ]; then
+        git branch -D $tag >>/dev/null 2>&1
+      fi
+
+      # fix: fatal: A branch named 'v1' already exists.
+      if [ "$(git::branch)" = "heads/$version" ]; then
+        git checkout master >>/dev/null
+        git branch -D $version >>/dev/null
+      fi
+
+      # 2. checkout tag branch
+      log::debug "[$(timestamp)][action::clone] git switch tag: $tag (version: $version) ..."
+      git checkout -b $version $tag >>$ZMICRO_LOG_UPDATE_PATH 2>$error_log
+      if [ "$?" != "0" ]; then
+        echo "[$(timestamp)][action::clone] git checkout error ${name} ..."
+        cat $error_log
+        exit 1
+      fi
+    fi
+
+    # fix docker-compose@v1 => docker-compose@latest
+    if [ "$version" = "master" ] && [ "$(git::branch)" != "master" ]; then
+      git checkout master >>/dev/null 2>$error_log
+      if [ "$?" != "0" ]; then
+        log::error "[$(timestamp)][action::clone] failed to checkout master at repo ${name} ."
+        cat $error_log
+        exit 1
+      fi
+    fi
+
+    # 3. update tag branch
+    local error_log=$(os::tmp_file)
+    log::debug "[$(timestamp)][action::clone] git update version: $version ..."
+    git pull origin $version >>$ZMICRO_LOG_UPDATE_PATH 2>$error_log
+    if [ "$?" != "0" ]; then
+      log::error "[$(timestamp)][action::clone] failed to update action repo ${name} ."
+      cat $error_log
+      exit 1
+    fi
+  fi
+}
+
+export -f action::clone
